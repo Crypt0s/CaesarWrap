@@ -190,8 +190,8 @@ if __name__ == "__main__":
 
         print "Starting RPC listener thread..."
         #def __init__(self,pipe,execObj):
-        RPCObj = RPCserver(p.stdin,execObj)
-        RPCObj.start()
+        #RPCObj = RPCserver(p.stdin,execObj)
+        #RPCObj.start()
         print "RPC Listener thread should be listening."
     
         # Main loop here
