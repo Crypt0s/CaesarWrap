@@ -56,10 +56,9 @@ class executor:
         return function_dict 
 
     def __handle__(self,user,usrCommand,usrArgs):
-        print user
         # Does user have an entry in permissions.txt?
         if user not in self.permissions.keys():
-            self.__respond__("Denied - User not in permissions.txt file.",user)
+            return self.__respond__("Denied - User not in permissions.txt file.",user)
 
         # Does the user have the ability to run that command?
         if 'all' in self.permissions[user] or usrCommand in self.permissions[user]:
@@ -221,6 +220,11 @@ if __name__ == "__main__":
             words = log.split()
             words = words[3:] # strip the first two non-important columns
             # now we make sure we are listening to a chat by testing to see if <> is present where we expect the username
+
+            print words
+            if len(words) <= 0:
+                continue
+
             user = words[0] # user is pretty much always here.
             if '<' != user[0] or '>' != user[-1] or '!' != words[1][0]:
                 #immediately bail out if we don't have a chat or we have a chat without the first letter being a '!'.
@@ -240,6 +244,8 @@ if __name__ == "__main__":
                 print result
                 p.stdin.write(result+"\n")
             except:
+                e = sys.exc_info()[0]
                 print user + " did something weird"
+                print e
 
 # now we need to handle input from IRC
