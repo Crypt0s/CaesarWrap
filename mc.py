@@ -57,7 +57,7 @@ class executor:
 
     def __handle__(self,user,usrCommand,usrArgs):
         # Does user have an entry in permissions.txt?
-        if user not in self.permissions.keys():
+        if usrCommand not in self.permissions['all'] and user not in self.permissions.keys():
             return self.__respond__("Denied - User not in permissions.txt file.",user)
 
         # Does the user have the ability to run that command?
@@ -68,12 +68,16 @@ class executor:
                 try:
                     return self.commands[usrCommand](user,usrArgs)
                 except:
+                    e = sys.exc_info()[0]
+                    print e
                     return "An error occured with command %s" % usrCommand
             elif 'all' in self.permissions:
                 # assume that the command is some minecraft server command we didn't choose to handle in executor
                 return "/" + usrCommand + " " + usrArgs#/cmd args is echo'd directly to server, so only ppl with "all" permission get it. all == admin
             else:
                 return self.__respond__("Denied - Command not found or Permission denied to a raw server command. Do you have the all permission?",user)
+        else:
+            return self.__respond__("Denied - User not in permissions.txt file.",user)
 
     # creates response text in the event we need to send text out
     def __respond__(self,message,user=None):
@@ -83,12 +87,12 @@ class executor:
         else:
             return "/tell %s %s" % (user, message)
    
-    def help(self):
+    def help(self,user,usrArgs):
         aggregate = ''
         for key in self.commands.keys():
             aggregate += key + ","
         aggregate = "commands: " + aggregate
-        return __respond__(aggregate)
+        return self.__respond__(aggregate)
 
 
 # RPC server allows you to not have to worry about doing RCON
