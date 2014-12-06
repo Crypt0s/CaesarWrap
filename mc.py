@@ -179,7 +179,11 @@ if __name__ == "__main__":
 
     # Read the config file here.  Plugins/Threads may read from it at some other point in time, but we need it now.
     config = ConfigParser.ConfigParser()
-    config.read('settings.ini')
+    if len(sys.argv) > 1:
+        settings = sys.argv[1]
+    else:
+        settings = 'settings.ini'
+    config.read(settings)
     mc_location = config.get('caesarwrap','minecraft_server_location')
     permissions_loc = config.get('caesarwrap','permissions_file_location')
 
