@@ -61,7 +61,7 @@ class executor:
             return self.__respond__("Denied - User not in permissions.txt file.",user)
 
         # Does the user have the ability to run that command?
-        if 'all' in self.permissions[user] or usrCommand in self.permissions[user]:
+        if usrCommand in self.permissions['all'] or 'all' in self.permissions[user] or usrCommand in self.permissions[user]:
             # Does the command exist?
             if usrCommand in self.commands.keys():
                 # Run the command!

@@ -38,6 +38,7 @@ lowercaseusername:permission,permission,permission
 "all" will make you an administrator capable of running any command in the wrapper and on the server, so watch out.
 other permissions should be the names of the functions defined in the executor class in mc.py
 
+putting 'all' in the username field and putting a list of commands thereafter will cause those commands to be availible to all users
 
 Writing Plugins
 ---------------
