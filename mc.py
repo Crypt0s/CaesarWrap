@@ -1,12 +1,12 @@
 #!/usr/bin/python
 #########################################################
-#               Magic Minecraft Wrapper                 #
+#            CaesarWrap Minecraft Wrapper               #
 #                                                       #
 # Wraps the minecraft server so that users can do stuff #
 # Also allows for commands to be executed from OUTSIDE  #
-#                                                       #
+# via a "RPC" server.                                   #
 #########################################################
-import subprocess, string, time, sys, socket, select, threading, glob, os, os.path, signal, sys, threads
+import subprocess, string, time, sys, socket, select, threading, glob, os, os.path, signal, sys, threads, ConfigParser, json
 import pdb
 # Todo: now that i wrote in error handling, display the errors
 # Where the commands are processed and turned into strings for the main loop to put back in over the popen pipe
@@ -91,17 +91,24 @@ class executor:
         aggregate = "commands: " + aggregate
         return __respond__(aggregate)
 
-HOST = "0.0.0.0"
-PORT = 9999
 
-# I wrapped this up in a class mostly to keep namespaces clear rather than because I'm going to thread it properly (lol)
+# RPC server allows you to not have to worry about doing RCON
+# Obviously it's not encrypted and allows only password-based auth, but it can be useful in situations where
+# maybe you want to connect an IRC bot to your minecraft server
 class RPCserver(threading.Thread):
 
-    def __init__(self,pipe,execObj):
-        print "hi"
+    def __init__(self,pipe,execObj,config):
+        self.config = config
         threading.Thread.__init__(self)
         self.pipe = pipe
         self.execObj = execObj
+        try:
+            self.host = self.config.get('rpcserver','ip')
+            self.port = self.config.getint('rpcserver','port')
+            self.password = self.config.get('rpcserver','password')
+        except:
+            print "Bad settings on RPC server, could not start"
+            exit(1)
 
     # This is where we accept input from ethernet  .
     def run(self):
@@ -109,11 +116,12 @@ class RPCserver(threading.Thread):
         print "Starting RPC server..."
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
-            s.bind((HOST,PORT))
+            s.bind((self.host,self.port))
         except socket.error as msg:
             print 'Bind failed: ' + str(msg[0])
         s.listen(10)
         #s.setblocking(0)
+        #s.timeout(1)
         print "RPC Server started"
         # connection-handler loop
         while 1:
@@ -126,10 +134,18 @@ class RPCserver(threading.Thread):
                 for i in input:
                     data = i.recv(1024)
                     if data:
-                        #usr,cmd,args
-                        data = data.split()
+                        #json is so much easier to parse
+                        #keys: password,usr,cmd,args
+                        try:
+                            j_data = json.loads(data)
+                        except:
+                            print "Recv'd non-parsable JSON message - skipping"
+                            pass
+                        if self.password != j_data['password']:
+                            print "Invalid password"
+                            continue
                         # pass to execObj and then write out to pipe
-                        self.pipe.write(self.execObj.__handle__(data[0],data[1],data[2]))
+                        self.pipe.write(self.execObj.__handle__(j_data['user'],j_data['cmd'],j_data['args']))
                     else:
                         input.remove(i)
         # We probably wont ever reach here.
@@ -145,7 +161,7 @@ if __name__ == "__main__":
         print "No settings.ini file detected!"
 
     # Handle signals
-    def sighandle(signal, grame):
+    def sighandle(signal, frame):
         # clean up stuff
         print "Detected Control-Break!"
         for thread in execObj.threads.values():
@@ -157,12 +173,17 @@ if __name__ == "__main__":
         p = None
         sys.exit(0)
     signal.signal(signal.SIGINT, sighandle)
-    
+
+    # Read the config file here.  Plugins/Threads may read from it at some other point in time, but we need it now.
+    config = ConfigParser.ConfigParser()
+    config.read('settings.ini')
+    mc_location = config.get('caesarwrap','minecraft_server_location')
+    permissions_loc = config.get('caesarwrap','permissions_file_location')
+
     # load permissions file
-    # TODO: make this a program arg.
     permissions = {}
     try:
-        with open('permissions.txt','r') as permFile:
+        with open(permissions_loc,'r') as permFile:
             perms = permFile.readlines()
         # parse the perms
         for perm in perms:
@@ -182,7 +203,7 @@ if __name__ == "__main__":
     while (restartstatus == 1):
         print "Starting the minecraft server..."
         onlinenumber=0
-        p = subprocess.Popen('java -Xmx1024M -Xms1024M -jar minecraft_server.1.8.1.jar',stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,shell=True)
+        p = subprocess.Popen('java -Xmx1024M -Xms1024M -jar '+mc_location,stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,shell=True)
         longp = p
         # had to move this down here.
         print "Starting command handler..."
@@ -190,8 +211,8 @@ if __name__ == "__main__":
 
         print "Starting RPC listener thread..."
         #def __init__(self,pipe,execObj):
-        #RPCObj = RPCserver(p.stdin,execObj)
-        #RPCObj.start()
+        RPCObj = RPCserver(p.stdin,execObj,config)
+        RPCObj.start()
         print "RPC Listener thread should be listening."
     
         # Main loop here
